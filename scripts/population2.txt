@@ -1,0 +1,79 @@
+//	NOTES:
+//	This is an example config.
+//
+//	All percentages MUST add up to 100.
+//
+//	Models are relative to the "models/infected" game directory and are listed as their filename without the ".mdl" extension.
+//
+//
+//
+//	// Available common infected models:
+//	common_female01
+//	common_female01_suit
+//	common_female_baggagehandler_01
+//	common_female_formal
+//	common_female_nurse01
+//	common_female_rural01
+//	common_female_tankTop_jeans
+//	common_female_tankTop_jeans_rain
+//	common_female_tshirt_skirt
+//	common_female_tshirt_skirt_swamp
+//	common_male01
+//	common_male02
+//	common_male_baggagehandler_01
+//	common_male_baggagehandler_02
+//	common_male_biker
+//	common_male_ceda
+//	common_male_ceda_l4d1
+//	common_male_clown
+//	common_male_dressShirt_jeans
+//	common_male_fallen_survivor			// Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
+//	common_male_fallen_survivor_l4d1	// Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
+//	common_male_formal
+//	common_male_jimmy
+//	common_male_mud
+//	common_male_mud_l4d1
+//	common_male_parachutist				// Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
+//	common_male_pilot
+//	common_male_polo_jeans
+//	common_male_riot
+//	common_male_riot_l4d1
+//	common_male_roadcrew
+//	common_male_roadcrew_l4d1
+//	common_male_roadcrew_rain
+//	common_male_rural01
+//	common_male_suit
+//	common_male_tankTop_jeans
+//	common_male_tankTop_jeans_rain
+//	common_male_tankTop_jeans_swamp
+//	common_male_tankTop_overalls
+//	common_male_tankTop_overalls_rain
+//	common_male_tankTop_overalls_swamp
+//	common_male_tshirt_cargos
+//	common_male_tshirt_cargos_swamp
+//	common_military_male01
+//	common_patient_male01
+//	common_police_male01
+//	common_surgeon_male01
+//	common_tsaagent_male01
+//	common_worker_male01
+
+Population
+{
+	//------------------------------------------------------------------------
+	// Areas are defined in the map or the nav file.  Right now we're using
+	// nav place names.  If no place name is used, we look for 'default'.
+	// Populations are lists of models, with percentages adding up to 100.
+	// Model names should be specified without the .mdl extension, and
+	// without the directory name (this assumes all infected models are in
+	// models/infected).
+
+
+
+	//------------------------------------------------------------------------
+	default
+	{
+		common_military_male01	70
+		common_police_male01 	30
+	}
+}

@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.0"
+#define PLUGIN_VERSION		"1.1"
 
 /*======================================================================================
 	Plugin Info:
@@ -31,6 +31,9 @@
 
 ========================================================================================
 	Change Log:
+
+1.1 (26-Oct-2023)
+	- Ignores non-common infected spawn areas allowing Special Infected to spawn.
 
 1.0 (25-Oct-2023)
 	- Initial release.
@@ -317,6 +320,12 @@ void LoadConfig()
 					{
 						g_hData.SetValue(sTemp, aMap);
 					}
+					else
+					{
+						// Save a blank section to allow Special Infected to spawn
+						delete aMap;
+						g_hData.SetValue(sTemp, 0);
+					}
 				}
 				while( hData.GotoNextKey(false) );
 			}
@@ -355,59 +364,62 @@ MRESReturn SelectModelByPopulation(DHookReturn hReturn, DHookParam hParams)
 	// Match "NavArea place names" or "default" section
 	if( g_hData.GetValue(sPlace, aMap) || g_hData.GetValue("default", aMap) )
 	{
-		// Get model name and chance to spawn
-		int size = aMap.Size;
-
-		if( size > 0 )
+		if( aMap ) // Ignore sections that have no data, Special Infected sections etc (if they trigger)
 		{
-			// Vars
-			int last = 101;
-			int percent;
-			int index = -1;
-			int chance = GetRandomInt(1, 100);
-			StringMapSnapshot aSnap = aMap.Snapshot();
-			static char sModel[PLATFORM_MAX_PATH];
+			// Get model name and chance to spawn
+			int size = aMap.Size;
 
-			// Loop models and chance
-			for( int i = size - 1; i >= 0; i-- ) // This was supposed to order from 100 to 0 chance. But the "aSnap" is not ordered by index, so looping the whole list and using the "last" var to track the lowest valid percent
+			if( size > 0 )
 			{
-				aSnap.GetKey(i, sModel, sizeof(sModel));
-				aMap.GetValue(sModel, percent);
+				// Vars
+				int last = 101;
+				int percent;
+				int index = -1;
+				int chance = GetRandomInt(1, 100);
+				StringMapSnapshot aSnap = aMap.Snapshot();
+				static char sModel[PLATFORM_MAX_PATH];
 
-				// PrintToServer("##### LIST %d %d %s", i, percent, sModel);
-
-				if( chance <= percent && percent < last )
+				// Loop models and chance
+				for( int i = size - 1; i >= 0; i-- ) // This was supposed to order from 100 to 0 chance. But the "aSnap" is not ordered by index, so looping the whole list and using the "last" var to track the lowest valid percent
 				{
-					index = i;
-					last = percent;
+					aSnap.GetKey(i, sModel, sizeof(sModel));
+					aMap.GetValue(sModel, percent);
+
+					// PrintToServer("##### LIST %d %d %s", i, percent, sModel);
+
+					if( chance <= percent && percent < last )
+					{
+						index = i;
+						last = percent;
+
+						#if DEBUG_PRINT
+						PrintToServer("##### Population: Index: %d Chance: %d/%d/%d [%s]", i, chance, percent, last, sModel);
+						#endif
+					}
+				}
+
+				// Override model
+				if( index != -1 )
+				{
+					aSnap.GetKey(index, sModel, sizeof(sModel));
+					delete aSnap;
 
 					#if DEBUG_PRINT
-					PrintToServer("##### Population: Index: %d Chance: %d/%d/%d [%s]", i, chance, percent, last, sModel);
+					PrintToServer("##### Population: Selected [%s]", sModel);
 					#endif
+
+					hReturn.SetString(sModel);
+					return MRES_Supercede;
 				}
-			}
-
-			// Override model
-			if( index != -1 )
-			{
-				aSnap.GetKey(index, sModel, sizeof(sModel));
-				delete aSnap;
-
 				#if DEBUG_PRINT
-				PrintToServer("##### Population: Selected [%s]", sModel);
+				else
+				{
+					PrintToServer("##### Selection failed: Chance %d/%d. Size: %d", chance, percent, size);
+				}
 				#endif
 
-				hReturn.SetString(sModel);
-				return MRES_Supercede;
+				delete aSnap;
 			}
-			#if DEBUG_PRINT
-			else
-			{
-				PrintToServer("##### Selection failed: Chance %d/%d. Size: %d", chance, percent, size);
-			}
-			#endif
-
-			delete aSnap;
 		}
 	}
 

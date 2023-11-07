@@ -5,6 +5,8 @@
 //
 //	Models are relative to the "models/infected" game directory and are listed as their filename without the ".mdl" extension.
 //
+//	For more details please see: https://developer.valvesoftware.com/wiki/Left_4_Dead_Infected_Populations
+//
 //
 //
 //	// Available common infected models:
@@ -23,24 +25,24 @@
 //	common_male_baggagehandler_01
 //	common_male_baggagehandler_02
 //	common_male_biker
-//	common_male_ceda
-//	common_male_ceda_l4d1
-//	common_male_clown
+//	common_male_ceda					// Uncommon Infected: Ceda
+//	common_male_ceda_l4d1				// Uncommon Infected: Ceda
+//	common_male_clown					// Uncommon Infected: Clown
 //	common_male_dressShirt_jeans
 //	common_male_fallen_survivor			// Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
 //	common_male_fallen_survivor_l4d1	// Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
 //	common_male_formal
-//	common_male_jimmy
-//	common_male_mud
-//	common_male_mud_l4d1
+//	common_male_jimmy					// Uncommon Infected: Jimmy Gibbs
+//	common_male_mud						// Uncommon Infected: Mud Men
+//	common_male_mud_l4d1				// Uncommon Infected: Mud Men
 //	common_male_parachutist				// Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
 //	common_male_pilot
 //	common_male_polo_jeans
-//	common_male_riot
-//	common_male_riot_l4d1
-//	common_male_roadcrew
-//	common_male_roadcrew_l4d1
-//	common_male_roadcrew_rain
+//	common_male_riot					// Uncommon Infected: Riot
+//	common_male_riot_l4d1				// Uncommon Infected: Riot (according to the wiki this is unfinished and broken)
+//	common_male_roadcrew				// Uncommon Infected: Road Crew
+//	common_male_roadcrew_l4d1			// Uncommon Infected: Road Crew
+//	common_male_roadcrew_rain			// Uncommon Infected: Road Crew
 //	common_male_rural01
 //	common_male_suit
 //	common_male_tankTop_jeans

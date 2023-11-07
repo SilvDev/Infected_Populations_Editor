@@ -1,0 +1,73 @@
+//	NOTES:
+//	This is an example config.
+//
+//	Spawns all types of Common Infected models, whilst keeping Uncommon Infected spawn chance at 1, instead of 2 or 3 like the others
+//
+//	For more details please see: https://developer.valvesoftware.com/wiki/Left_4_Dead_Infected_Populations
+
+Population
+{
+	//------------------------------------------------------------------------
+	// Areas are defined in the map or the nav file.  Right now we're using
+	// nav place names.  If no place name is used, we look for 'default'.
+	// Populations are lists of models, with percentages adding up to 100.
+	// Model names should be specified without the .mdl extension, and
+	// without the directory name (this assumes all infected models are in
+	// models/infected).
+
+
+
+	//------------------------------------------------------------------------
+	default
+	{
+		common_female01						3
+		common_female01_suit				3
+		common_female_baggagehandler_01		2
+		common_female_formal				3
+		common_female_nurse01				3
+		common_female_rural01				3
+		common_female_tankTop_jeans			3
+		common_female_tankTop_jeans_rain	2
+		common_female_tshirt_skirt			3
+		common_female_tshirt_skirt_swamp	2
+		common_male01						2
+		common_male02						2
+		common_male_baggagehandler_01		2
+		common_male_baggagehandler_02		2
+		common_male_biker					2
+		common_male_ceda					1
+		common_male_ceda_l4d1				1
+		common_male_clown					1
+		common_male_dressShirt_jeans		3
+		common_male_fallen_survivor			1
+		common_male_fallen_survivor_l4d1	1
+		common_male_formal					3
+		common_male_jimmy					1
+		common_male_mud						1
+		common_male_mud_l4d1				1
+		common_male_parachutist				1
+		common_male_pilot					2
+		common_male_polo_jeans				3
+		common_male_riot					1
+		common_male_riot_l4d1				1
+		common_male_roadcrew				1
+		common_male_roadcrew_l4d1			1
+		common_male_roadcrew_rain			1
+		common_male_rural01					3
+		common_male_suit					2
+		common_male_tankTop_jeans			2
+		common_male_tankTop_jeans_rain		2
+		common_male_tankTop_jeans_swamp		2
+		common_male_tankTop_overalls		2
+		common_male_tankTop_overalls_rain	2
+		common_male_tankTop_overalls_swamp	2
+		common_male_tshirt_cargos			3
+		common_male_tshirt_cargos_swamp		2
+		common_military_male01				3
+		common_patient_male01				3
+		common_police_male01				3
+		common_surgeon_male01				3
+		common_tsaagent_male01				2
+		common_worker_male01				2
+	}
+}

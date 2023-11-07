@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.1"
+#define PLUGIN_VERSION		"1.2"
 
 /*======================================================================================
 	Plugin Info:
@@ -31,6 +31,10 @@
 
 ========================================================================================
 	Change Log:
+
+1.2 (07-Nov-2023)
+	- Added feature to load configs by base mode: "coop", "realism", "survival", "versus", "scavenge" or defaults to "file" within the data config.
+	- Added "population3.txt" scripts config example to spawn all types of available infected.
 
 1.1 (26-Oct-2023)
 	- Ignores non-common infected spawn areas allowing Special Infected to spawn.
@@ -53,9 +57,22 @@
 #define DEBUG_PRINT			0 // Debug print the models loaded, the chance etc
 
 
+ConVar g_hCvarMPGameMode;
+int g_iCurrentMode;
 bool g_bValidData;
 StringMap g_hData;
 StringMapSnapshot g_hSnap;
+
+enum
+{
+	TYPE_CEDA			= 11,
+	TYPE_MUD_MEN		= 12,
+	TYPE_ROAD_WORKER	= 13,
+	TYPE_FALLEN			= 14,
+	TYPE_RIOT			= 15,
+	TYPE_CLOWN			= 16,
+	TYPE_JIMMY_GIBBS	= 17
+}
 
 
 
@@ -134,6 +151,9 @@ public void OnPluginStart()
 	// =========================
 	// OTHER
 	// =========================
+	g_hCvarMPGameMode = FindConVar("mp_gamemode");
+	g_hCvarMPGameMode.AddChangeHook(ConVarChanged_Cvars);
+
 	CreateConVar("l4d_population_editor_version", PLUGIN_VERSION, "Infected Populations Editor plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
 	RegAdminCmd("sm_pop_reload", CmdReload, ADMFLAG_ROOT, "Reloads the Infected Populations Editor data config.");
@@ -156,7 +176,55 @@ Action CmdReload(int client, int args)
 
 public void OnMapStart()
 {
+	GetGameMode();
+
 	LoadConfig();
+}
+
+void GetGameMode()
+{
+	g_iCurrentMode = 0;
+
+	int entity = CreateEntityByName("info_gamemode");
+	if( IsValidEntity(entity) )
+	{
+		DispatchSpawn(entity);
+		HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
+		HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
+		HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
+		HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
+		ActivateEntity(entity);
+		AcceptEntityInput(entity, "PostSpawnActivate");
+		if( IsValidEntity(entity) ) // Because sometimes "PostSpawnActivate" seems to kill the ent.
+			RemoveEdict(entity); // Because multiple plugins creating at once, avoid too many duplicate ents in the same frame
+	}
+
+	if( g_iCurrentMode == 1 )
+	{
+		static char temp[8];
+		g_hCvarMPGameMode.GetString(temp, sizeof(temp));
+		if( strcmp(temp, "realism") == 0 )
+		{
+			g_iCurrentMode = 5;
+		}
+	}
+}
+
+void OnGamemode(const char[] output, int caller, int activator, float delay)
+{
+	if( strcmp(output, "OnCoop") == 0 )
+		g_iCurrentMode = 1;
+	else if( strcmp(output, "OnSurvival") == 0 )
+		g_iCurrentMode = 2;
+	else if( strcmp(output, "OnVersus") == 0 )
+		g_iCurrentMode = 3;
+	else if( strcmp(output, "OnScavenge") == 0 )
+		g_iCurrentMode = 4;
+}
+
+void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	OnMapStart();
 }
 
 void ResetPlugin()
@@ -212,11 +280,31 @@ void LoadConfig()
 
 	if( hFile.JumpToKey(sMap) || hFile.JumpToKey("all") )
 	{
-		// Get the "file" path
-		hFile.GetString("file", sPath, sizeof(sPath));
+		// Get the "file" path, by mode or default
+		switch( g_iCurrentMode )
+		{
+			case 1:		hFile.GetString("coop", sPath, sizeof(sPath));
+			case 2:		hFile.GetString("survival", sPath, sizeof(sPath));
+			case 3:		hFile.GetString("versus", sPath, sizeof(sPath));
+			case 4:		hFile.GetString("scavenge", sPath, sizeof(sPath));
+			case 5:		hFile.GetString("realism", sPath, sizeof(sPath));
+			default:	hFile.GetString("file", sPath, sizeof(sPath));
+		}
 
+		// Ignore no modes
+		if( sPath[0] == 0 )
+		{
+			hFile.GetString("file", sPath, sizeof(sPath));
+		}
+
+		// Ignore blank configs
+		if( sPath[0] == 0 )
+		{
+			delete hFile;
+			return;
+		}
 		// Validate the config exists
-		if( !FileExists(sPath) )
+		else if( !FileExists(sPath) )
 		{
 			LogError("Error: custom file \"%s\" missing.", sPath);
 		}
@@ -315,7 +403,7 @@ void LoadConfig()
 					// Ready for next section
 					hData.GoBack();
 
-					// Save snapshot in StringMap
+					// Save StringMap in global StringMap
 					if( aMap.Size > 0 )
 					{
 						g_hData.SetValue(sTemp, aMap);
@@ -358,7 +446,7 @@ MRESReturn SelectModelByPopulation(DHookReturn hReturn, DHookParam hParams)
 	DHookGetParamString(hParams, 1, sPlace, sizeof(sPlace));
 
 	#if DEBUG_PRINT
-	PrintToServer("##### Population: entry [%s]", sPlace);
+	PrintToServer("##### Population: Entry [%s]", sPlace);
 	#endif
 
 	// Match "NavArea place names" or "default" section
@@ -427,8 +515,22 @@ MRESReturn SelectModelByPopulation(DHookReturn hReturn, DHookParam hParams)
 }
 
 /*
+// Uncommon infected trigger here when spawning
 MRESReturn Infected_Spawn(int pThis, DHookReturn hReturn)
 {
+	int type = GetEntProp(pThis, Prop_Send, "m_Gender");
+
+	switch( type )
+	{
+		case TYPE_CEDA:
+		case TYPE_MUD_MEN:
+		case TYPE_ROAD_WORKER:
+		case TYPE_FALLEN:
+		case TYPE_RIOT:
+		case TYPE_CLOWN:
+		case TYPE_JIMMY_GIBBS:
+	}
+
 	return MRES_Ignored;
 }
 */

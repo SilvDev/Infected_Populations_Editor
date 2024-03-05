@@ -35,6 +35,21 @@
 
 	"left4dead2"
 	{
+		"Addresses"
+		{
+			"PatchPopConfig"
+			{
+				"linux"
+				{
+					"signature"	"PatchPopConfig"
+				}
+				"windows"
+				{
+					"signature"	"PatchPopConfig"
+				}
+			}
+		}
+
 		"Signatures"
 		{
 			/* Infected::Spawn(Infected *this) */
@@ -55,6 +70,23 @@
 				"windows"		"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x53\x8B\x2A\x2A\x83\x2A\x2A\x2A\x56\x8B\x2A\x2A\x89\x2A\x2A\x2A\x2A\x2A\x89\x2A\x2A\x2A\x2A\x2A\x7F\x2A\x5E\x33\x2A\x5B"
 				/* ? ? ? ? ? ? ? ? ? A1 ? ? ? ? 33 ? 89 ? ? 53 8B ? ? 83 ? ? ? 56 8B ? ? 89 ? ? ? ? ? 89 ? ? ? ? ? 7F ? 5E 33 ? 5B */
 				/* Search "spawning a random zombie in unpopulated area '%s'\n" */
+			}
+
+			/* CDirector::ReloadPopulationData(CDirector *this) */
+			"CDirector::ReloadPopulationData"
+			{
+				"library"		"server"
+				"linux"			"@_ZN9CDirector20ReloadPopulationDataEv"
+				"windows"		"\x53\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x56\x85\x2A\x74\x2A\xE8\x2A\x2A\x2A\x2A\x6A\x2A\xE8\x2A\x2A\x2A\x2A\x83\x2A\x2A\x85\x2A\x74\x2A\x68\x2A\x2A\x2A\x2A\x8B\x2A\xE8\x2A\x2A\x2A\x2A\xEB"
+				/* 53 8B ? 8B ? ? ? ? ? 56 85 ? 74 ? E8 ? ? ? ? 6A ? E8 ? ? ? ? 83 ? ? 85 ? 74 ? 68 ? ? ? ? 8B ? E8 ? ? ? ? EB */
+				/* Search "spawning a random zombie in unpopulated area '%s'\n" */
+			}
+
+			"PatchPopConfig"
+			{
+				"library"		"server"
+				"windows"		"scripts/population.txt"
+				"linux"			"scripts/population.txt"
 			}
 		}
 	}

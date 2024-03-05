@@ -78,4 +78,9 @@ Population
 		common_military_male01	70
 		common_police_male01 	30
 	}
+
+	church
+	{
+		tank 100
+	}
 }

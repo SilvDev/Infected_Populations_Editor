@@ -1,6 +1,6 @@
 /*
 *	Infected Populations Editor
-*	Copyright (C) 2023 Silvers
+*	Copyright (C) 2024 Silvers
 *
 *	This program is free software: you can redistribute it and/or modify
 *	it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.2"
+#define PLUGIN_VERSION		"1.3"
 
 /*======================================================================================
 	Plugin Info:
@@ -31,6 +31,11 @@
 
 ========================================================================================
 	Change Log:
+
+1.3 (05-Mar-2024)
+	- Added support for Special Infected NavArea placements. Requested by "Sev".
+	- Plugin now requires the "Left 4 DHooks" plugin.
+	- GameData file has been updated.
 
 1.2 (07-Nov-2023)
 	- Added feature to load configs by base mode: "coop", "realism", "survival", "versus", "scavenge" or defaults to "file" within the data config.
@@ -49,6 +54,7 @@
 
 #include <sourcemod>
 #include <dhooks>
+#include <left4dhooks>
 
 
 #define CVAR_FLAGS			FCVAR_NOTIFY
@@ -62,6 +68,8 @@ int g_iCurrentMode;
 bool g_bValidData;
 StringMap g_hData;
 StringMapSnapshot g_hSnap;
+Address g_aPatchConfig;
+Handle g_hSDK_ReloadPopulation;
 
 enum
 {
@@ -114,8 +122,24 @@ public void OnPluginStart()
 	BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", GAMEDATA);
 	if( FileExists(sPath) == false ) SetFailState("\n==========\nMissing required file: \"%s\".\nRead installation instructions again.\n==========", sPath);
 
-	Handle hGameData = LoadGameConfigFile(GAMEDATA);
+	GameData hGameData = LoadGameConfigFile(GAMEDATA);
 	if( hGameData == null ) SetFailState("Failed to load \"%s.txt\" gamedata.", GAMEDATA);
+
+
+
+	// =========================
+	// SDKCALL
+	// =========================
+	StartPrepSDKCall(SDKCall_Raw);
+	PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CDirector::ReloadPopulationData");
+	g_hSDK_ReloadPopulation = EndPrepSDKCall();
+
+
+
+	// =========================
+	// ADDRESSES
+	// =========================
+	g_aPatchConfig = GameConfGetAddress(hGameData, "PatchPopConfig") + view_as<Address>(8);
 
 
 
@@ -169,6 +193,7 @@ public void OnPluginStart()
 Action CmdReload(int client, int args)
 {
 	LoadConfig();
+
 	ReplyToCommand(client, "Population Editor: config reloaded!");
 
 	return Plugin_Handled;
@@ -318,8 +343,15 @@ void LoadConfig()
 			}
 			else
 			{
+				#if DEBUG_PRINT
+				PrintToServer(" ");
+				PrintToServer("##### Population: Loading config [%s]", sPath);
+				#endif
+
 				char sTemp[64];
 				int percent;
+				int chance;
+				bool passed;
 
 				hData.GotoFirstSubKey(true);
 
@@ -327,6 +359,7 @@ void LoadConfig()
 				do
 				{
 					hData.GetSectionName(sTemp, sizeof(sTemp));
+
 					#if DEBUG_PRINT
 					PrintToServer(" ");
 					PrintToServer("##### Population: section [%s]", sTemp);
@@ -338,6 +371,7 @@ void LoadConfig()
 					// Loop through the models and chance to spawn
 					do
 					{
+						passed = true;
 						hData.GotoFirstSubKey(false);
 						hData.GetSectionName(sModel, sizeof(sModel));
 						hData.GoBack();
@@ -346,48 +380,69 @@ void LoadConfig()
 						PrintToServer("##### Population: key [%s]", sModel);
 						#endif
 
-						// Ignore all models that are not "common" infected
-						if( strncmp(sModel, "common", 6) )
+						// Ignore all models that are not "common" infected or Special Infected
+						if( strncmp(sModel, "common", 6) && strcmp(sModel, "tank") && strcmp(sModel, "boomer") && strcmp(sModel, "hunter") && strcmp(sModel, "smoker") && strcmp(sModel, "charger") && strcmp(sModel, "jockey") && strcmp(sModel, "spitter") && strcmp(sModel, "boomette") )
 						{
+							passed = false;
 							hData.JumpToKey(sModel);
-							continue;
+
+							#if DEBUG_PRINT
+							PrintToServer("##### Population: SKIP: INVALID MODEL [%s]", sModel);
+							#endif
 						}
 
 						// Add together percentage
-						percent += hData.GetNum(sModel);
+						chance = hData.GetNum(sModel);
+						if( chance == 0 )
+						{
+							passed = false;
+							#if DEBUG_PRINT
+							PrintToServer("##### Population: SKIP: 0% CHANCE [%s]", sModel);
+							#endif
+						}
+
 						hData.JumpToKey(sModel);
 
-						#if DEBUG_PRINT
-						PrintToServer("##### Population: val [%d]", percent);
-						#endif
+						if( passed )
+						{
+							percent += chance;
 
-						// Set full model path
-						Format(sModel, sizeof(sModel), "models/infected/%s.mdl", sModel);
+							#if DEBUG_PRINT
+							PrintToServer("##### Population: val [%d]", percent);
+							#endif
 
-						// Config error checks
-						if( percent > 100 )
-						{
-							LogError("\n==========\nError: percent adds up to > 100 (%d):\n===== File: \"%s\"\n===== Section: \"%s\"\n==========", percent, sPath, sTemp);
-							ResetPlugin();
-							return;
-						}
-						if( aMap.ContainsKey(sModel) )
-						{
-							LogError("\n==========\nError: duplicate model:\n===== File: \"%s\"\n===== Section: \"%s\"\n===== Model: \"%s\"\n==========", sPath, sTemp, sModel);
-							ResetPlugin();
-							return;
-						}
-						else if( FileExists(sModel, true) == false )
-						{
-							LogError("\n==========\nError: invalid model, file \"%s\" missing.\n==========", sModel);
-							ResetPlugin();
-							return;
-						}
-						// Save and Precache
-						else
-						{
-							PrecacheModel(sModel);
-							aMap.SetValue(sModel, percent);
+							// Set full model path
+							if( strcmp(sModel, "tank") == 0 )
+							{
+								sModel = "hulk";
+							}
+							Format(sModel, sizeof(sModel), "models/infected/%s.mdl", sModel);
+
+							// Config error checks
+							if( percent > 100 )
+							{
+								LogError("\n==========\nError: percent adds up to > 100 (%d):\n===== File: \"%s\"\n===== Section: \"%s\"\n==========", percent, sPath, sTemp);
+								ResetPlugin();
+								return;
+							}
+							if( aMap.ContainsKey(sModel) )
+							{
+								LogError("\n==========\nError: duplicate model:\n===== File: \"%s\"\n===== Section: \"%s\"\n===== Model: \"%s\"\n==========", sPath, sTemp, sModel);
+								ResetPlugin();
+								return;
+							}
+							else if( FileExists(sModel, true) == false )
+							{
+								LogError("\n==========\nError: invalid model, file \"%s\" missing.\n==========", sModel);
+								ResetPlugin();
+								return;
+							}
+							// Save and Precache
+							else
+							{
+								PrecacheModel(sModel);
+								aMap.SetValue(sModel, percent);
+							}
 						}
 					}
 					while( hData.GotoNextKey(false) );
@@ -416,6 +471,29 @@ void LoadConfig()
 					}
 				}
 				while( hData.GotoNextKey(false) );
+
+
+
+				// Rename config to force overriding
+				if( FileExists("scripts/Kopulation.txt") )
+					DeleteFile("scripts/Kopulation.txt");
+
+				RenameFile("scripts/Kopulation.txt", sPath);
+
+				// Patch config string name so it's loaded
+				StoreToAddress(g_aPatchConfig, 'K', NumberType_Int8);
+
+				// Reload population data
+				// Note: Even though we call this to overwrite the config, common still spawn using the old config, hence why we continue to detour SelectModelByPopulation
+				// Note: Although it seems to overwrite fine for InputspawnZombie, and hopefully other parts of the game using the population config
+				Address director = L4D_GetPointer(POINTER_DIRECTOR);
+				SDKCall(g_hSDK_ReloadPopulation, director);
+
+				// Restore patched string
+				StoreToAddress(g_aPatchConfig, 'p', NumberType_Int8);
+
+				// Restore config name
+				RenameFile(sPath, "scripts/Kopulation.txt");
 			}
 		}
 	}

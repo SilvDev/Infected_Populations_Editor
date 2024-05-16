@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.3"
+#define PLUGIN_VERSION		"1.4"
 
 /*======================================================================================
 	Plugin Info:
@@ -31,6 +31,9 @@
 
 ========================================================================================
 	Change Log:
+
+1.4 (16-May-2024)
+	- Updated plugin and GameData to fix errors and Windows signature from the recent L4D2 game update. Thanks to "Sev" for reporting.
 
 1.3 (05-Mar-2024)
 	- Added support for Special Infected NavArea placements. Requested by "Sev".
@@ -133,6 +136,8 @@ public void OnPluginStart()
 	StartPrepSDKCall(SDKCall_Raw);
 	PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CDirector::ReloadPopulationData");
 	g_hSDK_ReloadPopulation = EndPrepSDKCall();
+	if( g_hSDK_ReloadPopulation == null )
+		SetFailState("Failed to create SDKCall: CDirector::ReloadPopulationData");
 
 
 

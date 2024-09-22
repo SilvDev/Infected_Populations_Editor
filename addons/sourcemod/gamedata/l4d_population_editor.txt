@@ -33,6 +33,45 @@
 		}
 	}
 
+	"left4dead"
+	{
+		"Addresses"
+		{
+			"PatchPopConfig"
+			{
+				"linux"
+				{
+					"signature"	"PatchPopConfig"
+				}
+				"windows"
+				{
+					"signature"	"PatchPopConfig"
+				}
+			}
+		}
+
+		"Signatures"
+		{
+			/* SelectModelByPopulation(char const*, CUtlVector<char const*, CUtlMemory<char const*, int>> &) */
+			"SelectModelByPopulation"
+			{
+				"library"		"server"
+				"linux"			"@_Z23SelectModelByPopulationPKcR10CUtlVectorIS0_10CUtlMemoryIS0_iEE"
+				"windows"		"\x2A\x2A\x2A\x2A\x2A\x2A\x81\x2A\x2A\x2A\x2A\x2A\x56\x57\xE8\x2A\x2A\x2A\x2A\x8B\x2A\x85\x2A\x75\x2A\xA1"
+				/* ? ? ? ? ? ? 81 ? ? ? ? ? 56 57 E8 ? ? ? ? 8B ? 85 ? 75 ? A1 */
+				/* Search "spawning a random zombie in unpopulated area '%s'\n" */
+			}
+
+			"PatchPopConfig"
+			{
+				"library"		"server"
+				"windows"		"scripts/population.txt"
+				"linux"			"scripts/population.txt"
+			}
+		}
+
+	}
+
 	"left4dead2"
 	{
 		"Addresses"
@@ -62,7 +101,7 @@
 				/* XRef from "SelectModelByPopulation" */
 			}
 
-			/* SelectModelByPopulation(char const*,CUtlVector<char const*,CUtlMemory<char const*,int>> &) */
+			/* SelectModelByPopulation(char const*, CUtlVector<char const*, CUtlMemory<char const*, int>> &) */
 			"SelectModelByPopulation"
 			{
 				"library"		"server"

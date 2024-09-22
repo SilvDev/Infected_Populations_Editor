@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.4"
+#define PLUGIN_VERSION		"1.5"
 
 /*======================================================================================
 	Plugin Info:
@@ -31,6 +31,10 @@
 
 ========================================================================================
 	Change Log:
+
+1.5 (22-Sep-2024)
+	- Added support for Left 4 Dead 1 game.
+	- Plugin and GameData updated.
 
 1.4 (16-May-2024)
 	- Updated plugin and GameData to fix errors and Windows signature from the recent L4D2 game update. Thanks to "Sev" for reporting.
@@ -68,12 +72,13 @@
 
 ConVar g_hCvarMPGameMode;
 int g_iCurrentMode;
-bool g_bValidData;
+bool g_bValidData, g_bLeft4Dead2;
 StringMap g_hData;
 StringMapSnapshot g_hSnap;
 Address g_aPatchConfig;
 Handle g_hSDK_ReloadPopulation;
 
+// L4D2: Unused
 enum
 {
 	TYPE_CEDA			= 11,
@@ -102,9 +107,11 @@ public Plugin myinfo =
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	EngineVersion test = GetEngineVersion();
-	if( test != Engine_Left4Dead2 )
+	if( test == Engine_Left4Dead ) g_bLeft4Dead2 = false;
+	else if( test == Engine_Left4Dead2 ) g_bLeft4Dead2 = true;
+	else
 	{
-		strcopy(error, err_max, "Plugin only supports Left 4 Dead 2.");
+		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
 		return APLRes_SilentFailure;
 	}
 
@@ -133,11 +140,14 @@ public void OnPluginStart()
 	// =========================
 	// SDKCALL
 	// =========================
-	StartPrepSDKCall(SDKCall_Raw);
-	PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CDirector::ReloadPopulationData");
-	g_hSDK_ReloadPopulation = EndPrepSDKCall();
-	if( g_hSDK_ReloadPopulation == null )
-		SetFailState("Failed to create SDKCall: CDirector::ReloadPopulationData");
+	if( g_bLeft4Dead2 )
+	{
+		StartPrepSDKCall(SDKCall_Raw);
+		PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CDirector::ReloadPopulationData");
+		g_hSDK_ReloadPopulation = EndPrepSDKCall();
+		if( g_hSDK_ReloadPopulation == null )
+			SetFailState("Failed to create SDKCall: CDirector::ReloadPopulationData");
+	}
 
 
 
@@ -181,7 +191,6 @@ public void OnPluginStart()
 	// OTHER
 	// =========================
 	g_hCvarMPGameMode = FindConVar("mp_gamemode");
-	g_hCvarMPGameMode.AddChangeHook(ConVarChanged_Cvars);
 
 	CreateConVar("l4d_population_editor_version", PLUGIN_VERSION, "Infected Populations Editor plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
@@ -213,21 +222,7 @@ public void OnMapStart()
 
 void GetGameMode()
 {
-	g_iCurrentMode = 0;
-
-	int entity = CreateEntityByName("info_gamemode");
-	if( IsValidEntity(entity) )
-	{
-		DispatchSpawn(entity);
-		HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
-		ActivateEntity(entity);
-		AcceptEntityInput(entity, "PostSpawnActivate");
-		if( IsValidEntity(entity) ) // Because sometimes "PostSpawnActivate" seems to kill the ent.
-			RemoveEdict(entity); // Because multiple plugins creating at once, avoid too many duplicate ents in the same frame
-	}
+	g_iCurrentMode = L4D_GetGameModeType();
 
 	if( g_iCurrentMode == 1 )
 	{
@@ -240,19 +235,7 @@ void GetGameMode()
 	}
 }
 
-void OnGamemode(const char[] output, int caller, int activator, float delay)
-{
-	if( strcmp(output, "OnCoop") == 0 )
-		g_iCurrentMode = 1;
-	else if( strcmp(output, "OnSurvival") == 0 )
-		g_iCurrentMode = 2;
-	else if( strcmp(output, "OnVersus") == 0 )
-		g_iCurrentMode = 3;
-	else if( strcmp(output, "OnScavenge") == 0 )
-		g_iCurrentMode = 4;
-}
-
-void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
+public void L4D_OnGameModeChange(int gamemode)
 {
 	OnMapStart();
 }
@@ -314,9 +297,9 @@ void LoadConfig()
 		switch( g_iCurrentMode )
 		{
 			case 1:		hFile.GetString("coop", sPath, sizeof(sPath));
-			case 2:		hFile.GetString("survival", sPath, sizeof(sPath));
-			case 3:		hFile.GetString("versus", sPath, sizeof(sPath));
-			case 4:		hFile.GetString("scavenge", sPath, sizeof(sPath));
+			case 2:		hFile.GetString("versus", sPath, sizeof(sPath));
+			case 4:		hFile.GetString("survival", sPath, sizeof(sPath));
+			case 8:		hFile.GetString("scavenge", sPath, sizeof(sPath));
 			case 5:		hFile.GetString("realism", sPath, sizeof(sPath));
 			default:	hFile.GetString("file", sPath, sizeof(sPath));
 		}
@@ -491,8 +474,11 @@ void LoadConfig()
 				// Reload population data
 				// Note: Even though we call this to overwrite the config, common still spawn using the old config, hence why we continue to detour SelectModelByPopulation
 				// Note: Although it seems to overwrite fine for InputspawnZombie, and hopefully other parts of the game using the population config
-				Address director = L4D_GetPointer(POINTER_DIRECTOR);
-				SDKCall(g_hSDK_ReloadPopulation, director);
+				if( g_bLeft4Dead2 )
+				{
+					Address director = L4D_GetPointer(POINTER_DIRECTOR);
+					SDKCall(g_hSDK_ReloadPopulation, director);
+				}
 
 				// Restore patched string
 				StoreToAddress(g_aPatchConfig, 'p', NumberType_Int8);

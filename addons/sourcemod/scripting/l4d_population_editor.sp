@@ -1,6 +1,6 @@
 /*
 *	Infected Populations Editor
-*	Copyright (C) 2024 Silvers
+*	Copyright (C) 2026 Silvers
 *
 *	This program is free software: you can redistribute it and/or modify
 *	it under the terms of the GNU General Public License as published by
@@ -18,12 +18,12 @@
 
 
 
-#define PLUGIN_VERSION		"1.5"
+#define PLUGIN_VERSION		"1.6"
 
 /*======================================================================================
 	Plugin Info:
 
-*	Name	:	[L4D2] Infected Populations Editor
+*	Name	:	[L4D & L4D2] Infected Populations Editor
 *	Author	:	SilverShot
 *	Descrp	:	Modify population.txt values by config instead of conflicting VPK files.
 *	Link	:	https://forums.alliedmods.net/showthread.php?t=344298
@@ -31,6 +31,9 @@
 
 ========================================================================================
 	Change Log:
+
+1.6 (04-Jan-2026)
+	- Added checks for the Witch. Thanks to "Uncle Jessie" for reporting.
 
 1.5 (22-Sep-2024)
 	- Added support for Left 4 Dead 1 game.
@@ -97,7 +100,7 @@ enum
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "[L4D2] Infected Populations Editor",
+	name = "[L4D & L4D2] Infected Populations Editor",
 	author = "SilverShot",
 	description = "Modify population.txt values by config instead of conflicting VPK files.",
 	version = PLUGIN_VERSION,
@@ -369,7 +372,7 @@ void LoadConfig()
 						#endif
 
 						// Ignore all models that are not "common" infected or Special Infected
-						if( strncmp(sModel, "common", 6) && strcmp(sModel, "tank") && strcmp(sModel, "boomer") && strcmp(sModel, "hunter") && strcmp(sModel, "smoker") && strcmp(sModel, "charger") && strcmp(sModel, "jockey") && strcmp(sModel, "spitter") && strcmp(sModel, "boomette") )
+						if( strncmp(sModel, "common", 6) && strcmp(sModel, "tank") && strcmp(sModel, "boomer") && strcmp(sModel, "hunter") && strcmp(sModel, "smoker") && strcmp(sModel, "charger") && strcmp(sModel, "jockey") && strcmp(sModel, "spitter") && strcmp(sModel, "boomette") && strcmp(sModel, "witch") && strcmp(sModel, "witch_bride") )
 						{
 							passed = false;
 							hData.JumpToKey(sModel);

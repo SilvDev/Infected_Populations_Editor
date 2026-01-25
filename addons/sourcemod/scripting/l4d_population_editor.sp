@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.6"
+#define PLUGIN_VERSION		"1.7"
 
 /*======================================================================================
 	Plugin Info:
@@ -31,6 +31,9 @@
 
 ========================================================================================
 	Change Log:
+
+1.7 (25-Jan-2026)
+	- L4D2: Fixed breaking some spawn nav areas. Thanks to "Marttt" for reporting.
 
 1.6 (04-Jan-2026)
 	- Added checks for the Witch. Thanks to "Uncle Jessie" for reporting.
@@ -75,11 +78,12 @@
 
 ConVar g_hCvarMPGameMode;
 int g_iCurrentMode;
-bool g_bValidData, g_bLeft4Dead2;
+bool g_bValidData;
+// bool g_bLeft4Dead2;
 StringMap g_hData;
 StringMapSnapshot g_hSnap;
-Address g_aPatchConfig;
-Handle g_hSDK_ReloadPopulation;
+// Address g_aPatchConfig;
+// Handle g_hSDK_ReloadPopulation;
 
 // L4D2: Unused
 enum
@@ -110,9 +114,10 @@ public Plugin myinfo =
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	EngineVersion test = GetEngineVersion();
-	if( test == Engine_Left4Dead ) g_bLeft4Dead2 = false;
-	else if( test == Engine_Left4Dead2 ) g_bLeft4Dead2 = true;
-	else
+	// if( test == Engine_Left4Dead ) g_bLeft4Dead2 = false;
+	// else if( test == Engine_Left4Dead2 ) g_bLeft4Dead2 = true;
+	// else
+	if( test != Engine_Left4Dead && test != Engine_Left4Dead2 )
 	{
 		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
 		return APLRes_SilentFailure;
@@ -143,6 +148,7 @@ public void OnPluginStart()
 	// =========================
 	// SDKCALL
 	// =========================
+	/*
 	if( g_bLeft4Dead2 )
 	{
 		StartPrepSDKCall(SDKCall_Raw);
@@ -151,13 +157,14 @@ public void OnPluginStart()
 		if( g_hSDK_ReloadPopulation == null )
 			SetFailState("Failed to create SDKCall: CDirector::ReloadPopulationData");
 	}
+	*/
 
 
 
 	// =========================
 	// ADDRESSES
 	// =========================
-	g_aPatchConfig = GameConfGetAddress(hGameData, "PatchPopConfig") + view_as<Address>(8);
+	// g_aPatchConfig = GameConfGetAddress(hGameData, "PatchPopConfig") + view_as<Address>(8);
 
 
 
@@ -259,7 +266,7 @@ void ResetPlugin()
 			delete aMap;
 		}
 	}
-	
+
 	g_hData.Clear();
 	delete g_hSnap;
 }
@@ -465,29 +472,31 @@ void LoadConfig()
 
 
 
-				// Rename config to force overriding
-				if( FileExists("scripts/Kopulation.txt") )
-					DeleteFile("scripts/Kopulation.txt");
-
-				RenameFile("scripts/Kopulation.txt", sPath);
-
-				// Patch config string name so it's loaded
-				StoreToAddress(g_aPatchConfig, 'K', NumberType_Int8);
-
 				// Reload population data
 				// Note: Even though we call this to overwrite the config, common still spawn using the old config, hence why we continue to detour SelectModelByPopulation
 				// Note: Although it seems to overwrite fine for InputspawnZombie, and hopefully other parts of the game using the population config
+				/*
 				if( g_bLeft4Dead2 )
 				{
+					// Rename config to force overriding
+					if( FileExists("scripts/Kopulation.txt") )
+						DeleteFile("scripts/Kopulation.txt");
+
+					RenameFile("scripts/Kopulation.txt", sPath);
+
+					// Patch config string name so it's loaded
+					StoreToAddress(g_aPatchConfig, 'K', NumberType_Int8);
+
 					Address director = L4D_GetPointer(POINTER_DIRECTOR);
 					SDKCall(g_hSDK_ReloadPopulation, director);
+
+					// Restore patched string
+					StoreToAddress(g_aPatchConfig, 'p', NumberType_Int8);
+
+					// Restore config name
+					RenameFile(sPath, "scripts/Kopulation.txt");
 				}
-
-				// Restore patched string
-				StoreToAddress(g_aPatchConfig, 'p', NumberType_Int8);
-
-				// Restore config name
-				RenameFile(sPath, "scripts/Kopulation.txt");
+				// */
 			}
 		}
 	}

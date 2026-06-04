@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.7"
+#define PLUGIN_VERSION		"1.8"
 
 /*======================================================================================
 	Plugin Info:
@@ -31,6 +31,15 @@
 
 ========================================================================================
 	Change Log:
+
+1.8 (04-Jun-2026)
+	- Plugin now limits "Fallen Survivors" to the number set by "z_fallen_max_count" cvar.
+	- This cvar is created in L4D1 as it does not exist there.
+
+	- Chance changed to float values. No longer requires the chance adding up to 100, plugin normalizes to 100 percent.
+	- Added command "sm_pop_stat" for debugging. Compile plugin with "DEBUG_STATS" set to "1".
+
+	- Thanks to "gvazdas" for many of the changes in this update.
 
 1.7 (25-Jan-2026)
 	- L4D2: Fixed breaking some spawn nav areas. Thanks to "Marttt" for reporting.
@@ -74,18 +83,18 @@
 #define GAMEDATA			"l4d_population_editor"
 #define CONFIG_DATA			"data/l4d_population_editor.cfg"
 #define DEBUG_PRINT			0 // Debug print the models loaded, the chance etc
+#define DEBUG_STATS			1 // Unlock "sm_pop_stat" command
 
 
-ConVar g_hCvarMPGameMode;
-int g_iCurrentMode;
+ConVar g_hCvarMPGameMode, g_hCvarFallenCount;
+int g_iCurrentMode, g_iCvarFallenCount;
 bool g_bValidData;
-// bool g_bLeft4Dead2;
+bool g_bLeft4Dead2;
 StringMap g_hData;
 StringMapSnapshot g_hSnap;
 // Address g_aPatchConfig;
 // Handle g_hSDK_ReloadPopulation;
 
-// L4D2: Unused
 enum
 {
 	TYPE_CEDA			= 11,
@@ -96,6 +105,11 @@ enum
 	TYPE_CLOWN			= 16,
 	TYPE_JIMMY_GIBBS	= 17
 }
+
+// Print statistics.
+#if DEBUG_STATS
+StringMap g_hModelStats;
+#endif
 
 
 
@@ -114,10 +128,9 @@ public Plugin myinfo =
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	EngineVersion test = GetEngineVersion();
-	// if( test == Engine_Left4Dead ) g_bLeft4Dead2 = false;
-	// else if( test == Engine_Left4Dead2 ) g_bLeft4Dead2 = true;
-	// else
-	if( test != Engine_Left4Dead && test != Engine_Left4Dead2 )
+	if( test == Engine_Left4Dead ) g_bLeft4Dead2 = false;
+	else if( test == Engine_Left4Dead2 ) g_bLeft4Dead2 = true;
+	else
 	{
 		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
 		return APLRes_SilentFailure;
@@ -185,14 +198,17 @@ public void OnPluginStart()
 
 	// Uncommon infected spawns:
 	/*
-	hDetour = DHookCreateFromConf(hGameData, "Infected::Spawn");
-	if( !hDetour )
-		SetFailState("Failed to find \"Infected::Spawn\" signature.");
-	if( !DHookEnableDetour(hDetour, false, Infected_Spawn) )
-		SetFailState("Failed to detour \"Infected::Spawn\"");
-	if( !DHookEnableDetour(hDetour, true, Infected_Spawn_Post) )
-		SetFailState("Failed to detour \"Infected::Spawn\"");
-	delete hDetour;
+	if( g_bLeft4Dead2 )
+	{
+		hDetour = DHookCreateFromConf(hGameData, "Infected::Spawn");
+		if( !hDetour )
+			SetFailState("Failed to find \"Infected::Spawn\" signature.");
+		if( !DHookEnableDetour(hDetour, false, Infected_Spawn) )
+			SetFailState("Failed to detour \"Infected::Spawn\"");
+		if( !DHookEnableDetour(hDetour, true, Infected_Spawn_Post) )
+			SetFailState("Failed to detour \"Infected::Spawn\"");
+		delete hDetour;
+	}
 	*/
 
 
@@ -201,12 +217,29 @@ public void OnPluginStart()
 	// OTHER
 	// =========================
 	g_hCvarMPGameMode = FindConVar("mp_gamemode");
+	if( g_bLeft4Dead2 )
+		g_hCvarFallenCount = FindConVar("z_fallen_max_count");
+	else
+		g_hCvarFallenCount = CreateConVar("z_fallen_max_count", "1", "This command sets the maximum amount of Fallen Survivors that can be present at any given time. Once there are this amount of Fallen Survivors, no more will spawn.", CVAR_FLAGS);
+
+	g_hCvarFallenCount.AddChangeHook(ConVarChanged_Cvars);
+	g_iCvarFallenCount = g_hCvarFallenCount.IntValue;
 
 	CreateConVar("l4d_population_editor_version", PLUGIN_VERSION, "Infected Populations Editor plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
 	RegAdminCmd("sm_pop_reload", CmdReload, ADMFLAG_ROOT, "Reloads the Infected Populations Editor data config.");
 
+	#if DEBUG_STATS
+	g_hModelStats = new StringMap();
+	RegAdminCmd("sm_pop_stat", CmdStats, ADMFLAG_ROOT, "Print statistics. Use with only default specified.");
+	#endif
+
 	g_hData = new StringMap();
+}
+
+void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	g_iCvarFallenCount = g_hCvarFallenCount.IntValue;
 }
 
 
@@ -347,8 +380,8 @@ void LoadConfig()
 				#endif
 
 				char sTemp[64];
-				int percent;
-				int chance;
+				float percent;
+				float chance;
 				bool passed;
 
 				hData.GotoFirstSubKey(true);
@@ -364,7 +397,7 @@ void LoadConfig()
 					#endif
 
 					aMap = new StringMap();
-					percent = 0;
+					percent = 0.0;
 
 					// Loop through the models and chance to spawn
 					do
@@ -379,7 +412,8 @@ void LoadConfig()
 						#endif
 
 						// Ignore all models that are not "common" infected or Special Infected
-						if( strncmp(sModel, "common", 6) && strcmp(sModel, "tank") && strcmp(sModel, "boomer") && strcmp(sModel, "hunter") && strcmp(sModel, "smoker") && strcmp(sModel, "charger") && strcmp(sModel, "jockey") && strcmp(sModel, "spitter") && strcmp(sModel, "boomette") && strcmp(sModel, "witch") && strcmp(sModel, "witch_bride") )
+						if( strncmp(sModel, "common", 6) && strcmp(sModel, "tank") && strcmp(sModel, "boomer") && strcmp(sModel, "hunter") && strcmp(sModel, "smoker") && strcmp(sModel, "charger") &&
+						strcmp(sModel, "jockey") && strcmp(sModel, "spitter") && strcmp(sModel, "boomette") && strcmp(sModel, "witch") && strcmp(sModel, "witch_bride") )
 						{
 							passed = false;
 							hData.JumpToKey(sModel);
@@ -390,12 +424,12 @@ void LoadConfig()
 						}
 
 						// Add together percentage
-						chance = hData.GetNum(sModel);
-						if( chance == 0 )
+						chance = hData.GetFloat(sModel);
+						if( chance <= 0.0 )
 						{
 							passed = false;
 							#if DEBUG_PRINT
-							PrintToServer("##### Population: SKIP: 0% CHANCE [%s]", sModel);
+							PrintToServer("##### Population: SKIP: %f CHANCE [%s]", chance, sModel);
 							#endif
 						}
 
@@ -406,23 +440,30 @@ void LoadConfig()
 							percent += chance;
 
 							#if DEBUG_PRINT
-							PrintToServer("##### Population: val [%d]", percent);
+							PrintToServer("##### Population: val [%f]", percent);
 							#endif
 
 							// Set full model path
-							if( strcmp(sModel, "tank") == 0 )
-							{
-								sModel = "hulk";
-							}
+							if( strcmp(sModel, "tank") == 0 ) sModel = "hulk";
 							Format(sModel, sizeof(sModel), "models/infected/%s.mdl", sModel);
 
+							// Reduce precision to 3 decimal places
+							/*
+							percent *= 1000.0;
+							RoundToNearest(percent);
+							percent /= 1000.0;
+							// */
+
 							// Config error checks
-							if( percent > 100 )
+							/*
+							if( percent > 100.0 )
 							{
-								LogError("\n==========\nError: percent adds up to > 100 (%d):\n===== File: \"%s\"\n===== Section: \"%s\"\n==========", percent, sPath, sTemp);
+								LogError("\n==========\nError: percent adds up to > 100.0 (%f):\n===== File: \"%s\"\n===== Section: \"%s\"\n==========", percent, sPath, sTemp);
 								ResetPlugin();
 								return;
 							}
+							// */
+
 							if( aMap.ContainsKey(sModel) )
 							{
 								LogError("\n==========\nError: duplicate model:\n===== File: \"%s\"\n===== Section: \"%s\"\n===== Model: \"%s\"\n==========", sPath, sTemp, sModel);
@@ -446,9 +487,9 @@ void LoadConfig()
 					while( hData.GotoNextKey(false) );
 
 					// Error checking (0% can be from sections that do not have any common infected models)
-					if( percent != 0 && percent != 100 )
+					if( percent <= 0.0 )
 					{
-						LogError("\n==========\nError: percent does not add up to 100, (%d):\n===== File: \"%s\"\n===== Section: \"%s\"\n==========", percent, sPath, sTemp);
+						LogError("\n==========\nError: invalid percent (%f):\n===== File: \"%s\"\n===== Section: \"%s\"\n==========", percent, sPath, sTemp);
 						ResetPlugin();
 						return;
 					}
@@ -459,13 +500,43 @@ void LoadConfig()
 					// Save StringMap in global StringMap
 					if( aMap.Size > 0 )
 					{
+						// Enforce percent adding up to 100.0
+						#if DEBUG_PRINT
+						LogMessage("%s adds up to %f", sTemp, percent);
+						#endif
+
+						if( percent != 100.0 )
+						{
+							#if DEBUG_PRINT
+							LogMessage("Renormalizing %s:", sTemp);
+							#endif
+
+							float percent_old, percent_new;
+							float norm = percent / 100.0; // if percent>100.0, norm>1.0; we divide old percentages by norm to get sum to be 100.0
+							StringMapSnapshot aSnap = aMap.Snapshot();
+
+							for( int i = aMap.Size - 1; i >= 0; i-- )
+							{
+								aSnap.GetKey(i,sModel,sizeof(sModel));
+								aMap.GetValue(sModel, percent_old);
+								percent_new = percent_old/norm;
+								aMap.SetValue(sModel, percent_new);
+
+								#if DEBUG_PRINT
+								LogMessage("%s %f -> %f", sModel, percent_old, percent_new);
+								#endif
+							}
+
+							delete aSnap;
+						}
+
 						g_hData.SetValue(sTemp, aMap);
 					}
 					else
 					{
 						// Save a blank section to allow Special Infected to spawn
 						delete aMap;
-						g_hData.SetValue(sTemp, 0);
+						g_hData.SetValue(sTemp, INVALID_HANDLE);
 					}
 				}
 				while( hData.GotoNextKey(false) );
@@ -520,7 +591,7 @@ MRESReturn SelectModelByPopulation(DHookReturn hReturn, DHookParam hParams)
 	if( !g_bValidData ) return MRES_Ignored;
 
 	// Vars
-	static char sPlace[64];
+	static char sPlace[64], usedKey[64];
 	StringMap aMap;
 
 	// NavArea name
@@ -531,7 +602,10 @@ MRESReturn SelectModelByPopulation(DHookReturn hReturn, DHookParam hParams)
 	#endif
 
 	// Match "NavArea place names" or "default" section
-	if( g_hData.GetValue(sPlace, aMap) || g_hData.GetValue("default", aMap) )
+	if( g_hData.ContainsKey(sPlace) ) usedKey = sPlace;
+	else usedKey = "default";
+
+	if( g_hData.GetValue(usedKey, aMap) )
 	{
 		if( aMap ) // Ignore sections that have no data, Special Infected sections etc (if they trigger)
 		{
@@ -541,30 +615,45 @@ MRESReturn SelectModelByPopulation(DHookReturn hReturn, DHookParam hParams)
 			if( size > 0 )
 			{
 				// Vars
-				int last = 101;
-				int percent;
+				float percent;
+				float last = 101.0;
+				float chance = GetRandomFloat(0.0, 100.0);
+
 				int index = -1;
-				int chance = GetRandomInt(1, 100);
+				int num_fallen = -1;
+
 				StringMapSnapshot aSnap = aMap.Snapshot();
 				static char sModel[PLATFORM_MAX_PATH];
 
 				// Loop models and chance
-				for( int i = size - 1; i >= 0; i-- ) // This was supposed to order from 100 to 0 chance. But the "aSnap" is not ordered by index, so looping the whole list and using the "last" var to track the lowest valid percent
+				// This was supposed to order from 100 to 0 chance.
+				// But the "aSnap" is not ordered by index, so looping the whole list and using the "last" var to track the lowest valid percent
+				for( int i = size - 1; i >= 0; i-- )
 				{
 					aSnap.GetKey(i, sModel, sizeof(sModel));
 					aMap.GetValue(sModel, percent);
 
+					if( size > 1 ) // For sanity. If there is only one model in list, skip these checks.
+					{
+						if( chance > percent || percent >= last) continue; // Avoiding useless computation
+					}
+
+					 // Prevent too many Fallen Survivors. They get automatically culled if we don't track the number of them on field.
+					if( strncmp(sModel,"models/infected/common_male_fallen", 34) == 0 || strncmp(sModel,"models/infected/common_male_parachutist", 39) == 0 )
+					{
+						if( g_iCvarFallenCount <= 0 ) continue; // No fallen allowed
+						if( num_fallen < 0 ) num_fallen = GetNumFallen();
+						if( num_fallen >= g_iCvarFallenCount ) continue;
+					}
+
 					// PrintToServer("##### LIST %d %d %s", i, percent, sModel);
 
-					if( chance <= percent && percent < last )
-					{
-						index = i;
-						last = percent;
+					index = i;
+					last = percent;
 
-						#if DEBUG_PRINT
-						PrintToServer("##### Population: Index: %d Chance: %d/%d/%d [%s]", i, chance, percent, last, sModel);
-						#endif
-					}
+					#if DEBUG_PRINT
+					PrintToServer("##### Population: Index: %d Chance: %f/%f/%f [%s]", i, chance, percent, last, sModel);
+					#endif
 				}
 
 				// Override model
@@ -575,6 +664,13 @@ MRESReturn SelectModelByPopulation(DHookReturn hReturn, DHookParam hParams)
 
 					#if DEBUG_PRINT
 					PrintToServer("##### Population: Selected [%s]", sModel);
+					#endif
+
+					#if DEBUG_STATS
+					int model_count = 0;
+					if( g_hModelStats.ContainsKey(sModel) ) g_hModelStats.GetValue(sModel, model_count);
+					model_count += 1;
+					g_hModelStats.SetValue(sModel, model_count);
 					#endif
 
 					hReturn.SetString(sModel);
@@ -594,6 +690,56 @@ MRESReturn SelectModelByPopulation(DHookReturn hReturn, DHookParam hParams)
 
 	return MRES_Ignored;
 }
+
+int GetNumFallen()
+{
+	int count = 0;
+	int target = INVALID_ENT_REFERENCE;
+
+	while( (target = FindEntityByClassname(target, "infected")) != INVALID_ENT_REFERENCE )
+	{
+		if( GetEntProp(target, Prop_Send, "m_Gender") == TYPE_FALLEN )
+			count++;
+
+		if( count >= g_iCvarFallenCount )
+			break;
+	}
+
+	return count;
+}
+
+#if DEBUG_STATS
+Action CmdStats(int client, int args)
+{
+	int size = g_hModelStats.Size;
+	if( size <= 0 ) return Plugin_Handled;
+
+	StringMapSnapshot aSnap = g_hModelStats.Snapshot();
+	int count, total;
+	float percent;
+	static char sModel[PLATFORM_MAX_PATH];
+
+	for( int i = 0; i < size; i++ ) // Get total first.
+	{
+		aSnap.GetKey(i,sModel,sizeof(sModel));
+		g_hModelStats.GetValue(sModel,count);
+		total += count;
+	}
+
+	ReplyToCommand(client, "Population Editor Statistics:");
+
+	for( int i = 0; i < size; i++ )
+	{
+		aSnap.GetKey(i,sModel,sizeof(sModel));
+		g_hModelStats.GetValue(sModel,count);
+		percent = 100.0 * count / total;
+		ReplyToCommand(client, "%s %d %f%%", sModel, count, percent);
+	}
+
+	delete aSnap;
+	return Plugin_Handled;
+}
+#endif
 
 /*
 // Uncommon infected trigger here when spawning

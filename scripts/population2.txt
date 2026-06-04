@@ -1,8 +1,6 @@
 //	NOTES:
 //	This is an example config.
 //
-//	All percentages MUST add up to 100.
-//
 //	Models are relative to the "models/infected" game directory and are listed as their filename without the ".mdl" extension.
 //
 //	For more details please see: https://developer.valvesoftware.com/wiki/Left_4_Dead_Infected_Populations
@@ -23,26 +21,11 @@
 //	common_male01
 //	common_male02
 //	common_male_baggagehandler_01
-//	common_male_baggagehandler_02
 //	common_male_biker
-//	common_male_ceda					// Uncommon Infected: Ceda
-//	common_male_ceda_l4d1				// Uncommon Infected: Ceda
-//	common_male_clown					// Uncommon Infected: Clown
 //	common_male_dressShirt_jeans
-//	common_male_fallen_survivor			// Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
-//	common_male_fallen_survivor_l4d1	// Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
 //	common_male_formal
-//	common_male_jimmy					// Uncommon Infected: Jimmy Gibbs
-//	common_male_mud						// Uncommon Infected: Mud Men
-//	common_male_mud_l4d1				// Uncommon Infected: Mud Men
-//	common_male_parachutist				// Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
 //	common_male_pilot
 //	common_male_polo_jeans
-//	common_male_riot					// Uncommon Infected: Riot
-//	common_male_riot_l4d1				// Uncommon Infected: Riot (according to the wiki this is unfinished and broken)
-//	common_male_roadcrew				// Uncommon Infected: Road Crew
-//	common_male_roadcrew_l4d1			// Uncommon Infected: Road Crew
-//	common_male_roadcrew_rain			// Uncommon Infected: Road Crew
 //	common_male_rural01
 //	common_male_suit
 //	common_male_tankTop_jeans
@@ -59,6 +42,21 @@
 //	common_surgeon_male01
 //	common_tsaagent_male01
 //	common_worker_male01
+//	common_male_fallen_survivor			// Fallen Survivor - Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
+//	common_male_fallen_survivor_l4d1	// Fallen Survivor - Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
+//	common_male_parachutist				// Fallen Survivor - Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
+//	common_male_jimmy					// Uncommon Infected: Jimmy Gibbs
+//	common_male_mud						// Uncommon Infected: Mud Men
+//	common_male_mud_l4d1				// Uncommon Infected: Mud Men
+//	common_male_ceda					// Uncommon Infected: Ceda
+//	common_male_ceda_l4d1				// Uncommon Infected: Ceda
+//	common_male_clown					// Uncommon Infected: Clown
+//	common_male_riot					// Uncommon Infected: Riot
+//	common_male_riot_l4d1				// Uncommon Infected: Riot (according to the wiki this is unfinished and broken)
+//	common_male_baggagehandler_02		// Uncommon Infected: Road Crew - Headphones -> can't hear pipebombs
+//	common_male_roadcrew				// Uncommon Infected: Road Crew - Headphones -> can't hear pipebombs
+//	common_male_roadcrew_rain			// Uncommon Infected: Road Crew - Headphones -> can't hear pipebombs
+//	common_male_roadcrew_l4d1			// Uncommon Infected: Road Crew - Headphones -> can't hear pipebombs
 
 Population
 {
@@ -75,8 +73,10 @@ Population
 	//------------------------------------------------------------------------
 	default
 	{
-		common_military_male01	70
-		common_police_male01 	30
+		common_military_male01 50
+		common_police_male01 50
+		common_tsaagent_male01 5
+		common_patient_male01 0.1
 	}
 
 	church

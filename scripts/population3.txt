@@ -33,26 +33,11 @@ Population
 		common_male01						2
 		common_male02						2
 		common_male_baggagehandler_01		2
-		common_male_baggagehandler_02		2
 		common_male_biker					2
-		common_male_ceda					1
-		common_male_ceda_l4d1				1
-		common_male_clown					1
 		common_male_dressShirt_jeans		3
-		common_male_fallen_survivor			1
-		common_male_fallen_survivor_l4d1	1
 		common_male_formal					3
-		common_male_jimmy					1
-		common_male_mud						1
-		common_male_mud_l4d1				1
-		common_male_parachutist				1
 		common_male_pilot					2
 		common_male_polo_jeans				3
-		common_male_riot					1
-		common_male_riot_l4d1				1
-		common_male_roadcrew				1
-		common_male_roadcrew_l4d1			1
-		common_male_roadcrew_rain			1
 		common_male_rural01					3
 		common_male_suit					2
 		common_male_tankTop_jeans			2
@@ -69,5 +54,20 @@ Population
 		common_surgeon_male01				3
 		common_tsaagent_male01				2
 		common_worker_male01				2
+		common_male_fallen_survivor			1	// Fallen Survivor - Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
+		common_male_fallen_survivor_l4d1	1	// Fallen Survivor - Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
+		common_male_parachutist				1	// Fallen Survivor - Requires higher value for the z_fallen_max_count cvar, otherwise only 1 will spawn
+		common_male_jimmy					1	// Uncommon Infected: Jimmy Gibbs
+		common_male_mud						1	// Uncommon Infected: Mud Men
+		common_male_mud_l4d1				1	// Uncommon Infected: Mud Men
+		common_male_ceda					1	// Uncommon Infected: Ceda
+		common_male_ceda_l4d1				1	// Uncommon Infected: Ceda
+		common_male_clown					1	// Uncommon Infected: Clown
+		common_male_riot					1	// Uncommon Infected: Riot
+		common_male_riot_l4d1				1	// Uncommon Infected: Riot (according to the wiki this is unfinished and broken)
+		common_male_baggagehandler_02		1	// Uncommon Infected: Road Crew - Headphones -> can't hear pipebombs
+		common_male_roadcrew				1	// Uncommon Infected: Road Crew - Headphones -> can't hear pipebombs
+		common_male_roadcrew_rain			1	// Uncommon Infected: Road Crew - Headphones -> can't hear pipebombs
+		common_male_roadcrew_l4d1			1	// Uncommon Infected: Road Crew - Headphones -> can't hear pipebombs
 	}
 }

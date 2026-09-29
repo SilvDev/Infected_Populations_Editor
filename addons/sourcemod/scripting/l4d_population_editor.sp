@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.8"
+#define PLUGIN_VERSION		"1.9"
 
 /*======================================================================================
 	Plugin Info:
@@ -31,6 +31,10 @@
 
 ========================================================================================
 	Change Log:
+
+1.9 (29-Sep-2026) - Update by "gvazdas"
+	- Fixed some bugs in L4D1 that prevented the script from running.
+	- Removed z_fallen_max_count for L4D1. Fallen survivors don't exist in L4D1.
 
 1.8 (04-Jun-2026)
 	- Plugin now limits "Fallen Survivors" to the number set by "z_fallen_max_count" cvar.
@@ -218,12 +222,11 @@ public void OnPluginStart()
 	// =========================
 	g_hCvarMPGameMode = FindConVar("mp_gamemode");
 	if( g_bLeft4Dead2 )
+	{
 		g_hCvarFallenCount = FindConVar("z_fallen_max_count");
-	else
-		g_hCvarFallenCount = CreateConVar("z_fallen_max_count", "1", "This command sets the maximum amount of Fallen Survivors that can be present at any given time. Once there are this amount of Fallen Survivors, no more will spawn.", CVAR_FLAGS);
-
-	g_hCvarFallenCount.AddChangeHook(ConVarChanged_Cvars);
-	g_iCvarFallenCount = g_hCvarFallenCount.IntValue;
+		g_hCvarFallenCount.AddChangeHook(ConVarChanged_Cvars);
+		g_iCvarFallenCount = g_hCvarFallenCount.IntValue;
+	}
 
 	CreateConVar("l4d_population_editor_version", PLUGIN_VERSION, "Infected Populations Editor plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
@@ -302,6 +305,10 @@ void ResetPlugin()
 
 	g_hData.Clear();
 	delete g_hSnap;
+
+	#if DEBUG_PRINT
+	LogMessage("ResetPlugin, g_hData cleared");
+	#endif
 }
 
 void LoadConfig()
@@ -390,6 +397,7 @@ void LoadConfig()
 				do
 				{
 					hData.GetSectionName(sTemp, sizeof(sTemp));
+					StringToLower(sTemp);
 
 					#if DEBUG_PRINT
 					PrintToServer(" ");
@@ -531,12 +539,20 @@ void LoadConfig()
 						}
 
 						g_hData.SetValue(sTemp, aMap);
+
+						#if DEBUG_PRINT
+						LogMessage("g_hData added %s, size %d", sTemp, aMap.Size);
+						#endif
 					}
 					else
 					{
 						// Save a blank section to allow Special Infected to spawn
 						delete aMap;
 						g_hData.SetValue(sTemp, INVALID_HANDLE);
+
+						#if DEBUG_PRINT
+						LogMessage("g_hData added %s NULL", sTemp);
+						#endif
 					}
 				}
 				while( hData.GotoNextKey(false) );
@@ -572,6 +588,10 @@ void LoadConfig()
 		}
 	}
 
+	#if DEBUG_PRINT
+	LogMessage("g_hData.Size %d", g_hData.Size);
+	#endif
+
 	if( g_hData.Size > 0 )
 	{
 		g_hSnap = g_hData.Snapshot();
@@ -596,14 +616,15 @@ MRESReturn SelectModelByPopulation(DHookReturn hReturn, DHookParam hParams)
 
 	// NavArea name
 	DHookGetParamString(hParams, 1, sPlace, sizeof(sPlace));
-
-	#if DEBUG_PRINT
-	PrintToServer("##### Population: Entry [%s]", sPlace);
-	#endif
+	StringToLower(sPlace);
 
 	// Match "NavArea place names" or "default" section
 	if( g_hData.ContainsKey(sPlace) ) usedKey = sPlace;
 	else usedKey = "default";
+
+	#if DEBUG_PRINT
+	PrintToServer("##### Population: Entry [%s] usedKey [%s]", sPlace, usedKey);
+	#endif
 
 	if( g_hData.GetValue(usedKey, aMap) )
 	{
@@ -611,6 +632,10 @@ MRESReturn SelectModelByPopulation(DHookReturn hReturn, DHookParam hParams)
 		{
 			// Get model name and chance to spawn
 			int size = aMap.Size;
+
+			#if DEBUG_PRINT
+			PrintToServer("usedKey [%s] aMap size", usedKey, size);
+			#endif
 
 			if( size > 0 )
 			{
@@ -638,12 +663,15 @@ MRESReturn SelectModelByPopulation(DHookReturn hReturn, DHookParam hParams)
 						if( chance > percent || percent >= last) continue; // Avoiding useless computation
 					}
 
-					 // Prevent too many Fallen Survivors. They get automatically culled if we don't track the number of them on field.
-					if( strncmp(sModel,"models/infected/common_male_fallen", 34) == 0 || strncmp(sModel,"models/infected/common_male_parachutist", 39) == 0 )
+					if (g_bLeft4Dead2)
 					{
-						if( g_iCvarFallenCount <= 0 ) continue; // No fallen allowed
-						if( num_fallen < 0 ) num_fallen = GetNumFallen();
-						if( num_fallen >= g_iCvarFallenCount ) continue;
+						// Prevent too many Fallen Survivors. They get automatically culled if we don't track the number of them on field.
+						if( strncmp(sModel,"models/infected/common_male_fallen", 34) == 0 || strncmp(sModel,"models/infected/common_male_parachutist", 39) == 0 )
+						{
+							if( g_iCvarFallenCount <= 0 ) continue; // No fallen allowed
+							if( num_fallen < 0 ) num_fallen = GetNumFallen();
+							if( num_fallen >= g_iCvarFallenCount ) continue;
+						}
 					}
 
 					// PrintToServer("##### LIST %d %d %s", i, percent, sModel);
@@ -679,7 +707,7 @@ MRESReturn SelectModelByPopulation(DHookReturn hReturn, DHookParam hParams)
 				#if DEBUG_PRINT
 				else
 				{
-					PrintToServer("##### Selection failed: Chance %d/%d. Size: %d", chance, percent, size);
+					PrintToServer("##### Selection failed: Chance %f/%f. Size: %d", chance, percent, size);
 				}
 				#endif
 
@@ -706,6 +734,15 @@ int GetNumFallen()
 	}
 
 	return count;
+}
+
+stock void StringToLower(char[] buffer)
+{
+    int len = strlen(buffer);
+    for (int i = 0; i < len; i++)
+    {
+        buffer[i] = CharToLower(buffer[i]);
+    }
 }
 
 #if DEBUG_STATS
